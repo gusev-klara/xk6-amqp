@@ -3,6 +3,7 @@ package amqp
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -30,23 +31,24 @@ type Options struct {
 
 // PublishOptions defines a message payload with delivery options.
 type PublishOptions struct {
-	ConnectionID  int
-	QueueName     string
-	Body          string
-	Headers       amqpDriver.Table
-	Exchange      string
-	ContentType   string
-	Mandatory     bool
-	Immediate     bool
-	Persistent    bool
-	CorrelationID string
-	ReplyTo       string
-	Expiration    string
-	MessageID     string
-	Timestamp     int64 // unix epoch timestamp in seconds
-	Type          string
-	UserID        string
-	AppID         string
+	ConnectionID    int
+	QueueName       string
+	Body            string
+	Headers         amqpDriver.Table
+	Exchange        string
+	ContentType     string
+	ContentEncoding string
+	Mandatory       bool
+	Immediate       bool
+	Persistent      bool
+	CorrelationID   string
+	ReplyTo         string
+	Expiration      string
+	MessageID       string
+	Timestamp       int64 // unix epoch timestamp in seconds
+	Type            string
+	UserID          string
+	AppID           string
 }
 
 // ConsumeOptions defines options for use when consuming a message.
@@ -76,6 +78,7 @@ type ListenOptions struct {
 }
 
 const messagepack = "application/x-msgpack"
+const base64encoding = "base64"
 
 // Start establishes a session with an AMQP server given the provided options.
 func (amqp *AMQP) Start(options Options) (int, error) {
@@ -132,6 +135,9 @@ func (amqp *AMQP) Publish(options PublishOptions) error {
 		if err != nil {
 			return err
 		}
+	} else if options.ContentEncoding == base64encoding {
+		data, _ := base64.StdEncoding.DecodeString(options.Body)
+		publishing.Body = []byte(data)
 	} else {
 		publishing.Body = []byte(options.Body)
 	}
@@ -152,6 +158,7 @@ func (amqp *AMQP) Publish(options PublishOptions) error {
 	publishing.Type = options.Type
 	publishing.UserId = options.UserID
 	publishing.AppId = options.AppID
+	publishing.ContentEncoding = ""
 
 	return ch.PublishWithContext(
 		context.Background(), // TODO: use vu context
